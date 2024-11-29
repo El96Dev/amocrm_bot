@@ -4,10 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models import UserCredentials, UserTokens
 
 
-async def get_user_credentials(session: AsyncSession) -> UserCredentials | None:
+async def get_user_credentials(session: AsyncSession) -> list[UserCredentials]:
     stmt = select(UserCredentials)
     result = await session.execute(stmt)
-    credentials = result.scalars().one_or_none()
+    credentials = result.scalars().all()
     return credentials
 
 
@@ -32,8 +32,8 @@ async def set_user_credentials(chat_id: int, client_id: str, secret_key: str, re
         return user_credentials
 
 
-async def get_user_tokens(session: AsyncSession) -> UserTokens | None:
-    stmt = select(UserTokens)
+async def get_user_tokens(chat_id: int, session: AsyncSession) -> list[UserTokens]:
+    stmt = select(UserTokens).where(UserTokens.chat_id==chat_id)
     result = await session.execute(stmt)
     tokens = result.scalars().one_or_none()
     return tokens

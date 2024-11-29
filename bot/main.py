@@ -98,17 +98,18 @@ async def set_auth_code(message: types.Message, state: FSMContext):
 def send_report_message():
     session = db_helper.get_scoped_session()
     loop = asyncio.get_event_loop()
-    credentials = loop.run_until_complete(crud.get_user_credentials(session))
-    if credentials is not None:
-        tokens = loop.run_until_complete(crud.get_user_tokens(session))
-        response = update_access_and_refresh_tokens(credentials, tokens.refresh_token)
-        if response.status_code != 200:
-            amocrm_bot.send_message(chat_id=credentials.chat_id, text=response.text)
-        else:
-            data = response.json()
-            loop.run_until_complete(crud.set_user_tokens(credentials.chat_id, data["access_token"], data["refresh_token"], session))
-            message = get_revenue_by_manager(credentials.subdomain, data["access_token"])
-            loop.run_until_complete(amocrm_bot.send_message(chat_id=credentials.chat_id, text=message))  
+    credentials_list = loop.run_until_complete(crud.get_user_credentials(session))
+    for credentials in credentials_list:
+        if credentials is not None:
+            tokens = loop.run_until_complete(crud.get_user_tokens(credentials.chat_id, session))
+            response = update_access_and_refresh_tokens(credentials, tokens.refresh_token)
+            if response.status_code != 200:
+                amocrm_bot.send_message(chat_id=credentials.chat_id, text=response.text)
+            else:
+                data = response.json()
+                loop.run_until_complete(crud.set_user_tokens(credentials.chat_id, data["access_token"], data["refresh_token"], session))
+                message = get_revenue_by_manager(credentials.subdomain, data["access_token"])
+                loop.run_until_complete(amocrm_bot.send_message(chat_id=credentials.chat_id, text=message))  
 
 
 async def main():
