@@ -1,0 +1,64 @@
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    volumes: 
+      - ./bot:/amocrm_bot/
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "alembic upgrade head
+             python3 main.py"
+    env_file:
+      - .env
+
+    depends_on:
+      pgdb:
+        condition: service_healthy
+
+  pgdb:
+    image: postgres
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d amocrm_bot"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  celery_worker:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      pgdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A celery_app worker --loglevel=info
+
+  celery_beat:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      pgdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A celery_app beat --loglevel=info
+
+  redis:
+    image: "redis:alpine"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  pgdata:
